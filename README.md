@@ -6,11 +6,19 @@ The CapZyme experiment compares a Control sample to a sample treated with an enz
 ![CapZyme-seq](https://user-images.githubusercontent.com/42373129/126970748-336ac8fd-cec4-4ba5-b63a-72f0b5e56ac3.png)
 
 
-The flow of the CapZyme-seq data analysis described in XXXXXXX.sh:
+The flow of the CapZyme-seq data analysis, described in XXXXXXX.sh:
 1. Trimming with cutadapt
 2. Pseudo mapping to entire transcriptome with kallisto
 3. Mapping to expressed mRNAs + viral RNAs + small RNAs with Bowtie2
-4. Counting 5' termini reads with FeatureCount
-5. Importing count files into R
-6. Analysis with DeSeq2.
+4. BAM to SAM files with samtools
+5. Counting 5' termini reads with FeatureCount
+6. Importing count files into R
+7. Analysis with DeSeq2.
+
+
+Other analyses, described in XXXXXXX.sh:
+
+1. Making sequencing depth files
+2. Making wig files for uploading to UCSC
+3. Analysis of 5' termini sequence
 
