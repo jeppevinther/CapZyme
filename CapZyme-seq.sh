@@ -34,6 +34,7 @@ cd data
 samples='02 03 05 06 08 09 11 12 14 15'
 
 # To download example fastq files (http://doi.org/10.17894/ucph.d4789e55-479c-4f82-8095-49b1af68ed5a)
+for lab_number in $samples
 do
 wget -nH --no-parent -e robots=off https://erda.ku.dk/archives/9a23ff7d54511e58ebf940702f2c2cd0/"$lab_number".fastq.gz
 done
