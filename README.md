@@ -19,6 +19,6 @@ The flow of the CapZyme-seq data analysis, described in XXXXXXX.sh:
 Other analyses, described in XXXXXXX.sh:
 
 1. Making sequencing depth files
-2. Making wig files for uploading to UCSC
-3. Analysis of 5' termini sequence
+2. Analysis of 5' termini sequence
+3. Making wig files for uploading to UCSC as custom tracks
 
