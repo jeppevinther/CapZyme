@@ -192,5 +192,3 @@ cd $path/data/featureCounts
 featureCounts -a $path/data/sequences/RNAs_100.saf -o $path/featureCounts_counts.txt 2> $path/featureCounts_info.txt -F "SAF" *.sam
 
 
-##############
-# Data analysis in R
