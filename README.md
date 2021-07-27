@@ -7,6 +7,7 @@ The CapZyme experiment compares a Control sample to a sample treated with an enz
 
 ![CapZyme-seq](https://user-images.githubusercontent.com/42373129/126970748-336ac8fd-cec4-4ba5-b63a-72f0b5e56ac3.png)
 
+<img width="400" alt="MD plot" src="https://user-images.githubusercontent.com/42373129/126970748-336ac8fd-cec4-4ba5-b63a-72f0b5e56ac3.png">
 
 CapZyme-seq bash data analysis, described in CapZyme-seq.sh (https://github.com/jeppevinther/CapZyme/blob/main/CapZyme-seq.sh):
 
@@ -23,7 +24,7 @@ CapZyme-seq R data analysis, described in CapZyme-seq.R (https://github.com/jepp
 8. Plotting the data
 
 Using the scaled-down example data, the main finding of _Sherwood et al, 2021_ can be reproduced:
-<img width="612" alt="MD plot" src="https://user-images.githubusercontent.com/42373129/127151633-de031479-0f8e-4624-b9f8-92cbc7f3165f.png">
+<img width="400" alt="MD plot" src="https://user-images.githubusercontent.com/42373129/127151633-de031479-0f8e-4624-b9f8-92cbc7f3165f.png">
 
 Other analyses, described in XXXXXXX.sh:
 
