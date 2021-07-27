@@ -7,6 +7,7 @@ The CapZyme experiment compares a Control sample to a sample treated with an enz
 
 
 CapZyme-seq bash data analysis, described in CapZyme-seq.sh (https://github.com/jeppevinther/CapZyme/blob/main/CapZyme-seq.sh):
+
 1. Trimming with cutadapt
 2. Pseudo mapping to entire transcriptome with kallisto
 3. Mapping to expressed mRNAs + viral RNAs + small RNAs with Bowtie2
@@ -14,6 +15,7 @@ CapZyme-seq bash data analysis, described in CapZyme-seq.sh (https://github.com/
 5. Counting 5' termini reads with FeatureCount
 
 CapZyme-seq R data analysis, described in CapZyme-seq.R (https://github.com/jeppevinther/CapZyme/blob/main/CapZyme-seq.R)
+
 6. Importing count files into R
 7. Analysis with DeSeq2
 8. Plotting the data
