@@ -19,7 +19,6 @@ cd /directory
 
 #Put the path to the directory in $path
 path=PATH_TO_THE_DIRECTORY
-path=/binf-isilon/vintherlab/jvinther/scratch
 
 cd $path
 mkdir data
