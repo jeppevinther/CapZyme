@@ -1,4 +1,5 @@
 # Bash CapZyme-seq data analysis pipeline (Sherwood et al, 2021)
+# Jeppe Vinther, 2021-29-07
 
 #### Requirements
 # cutadapt (added to the path) https://cutadapt.readthedocs.io/en/stable/index.html
@@ -19,6 +20,7 @@ cd /directory
 
 #Put the path to the directory in $path
 path=PATH_TO_THE_DIRECTORY
+path=/binf-isilon/vintherlab/jvinther/scratch
 
 cd $path
 mkdir data
@@ -191,4 +193,127 @@ wait
 cd $path/data/featureCounts
 featureCounts -a $path/data/sequences/RNAs_100.saf -o $path/featureCounts_counts.txt 2> $path/featureCounts_info.txt -F "SAF" *.sam
 
+# featureCounts_counts.txt is ready for import into R and further analysis
+
+
+
+
+############## 
+# Accessory analysis: Analysis of 5 termini sequence 
+# sam files containing alignment to RNAs are used for analysis
+# Example data sam files in $path/data/featureCounts
+# grep regex identifies the alignment that map exactly to the 5' end of the HCV sequences 
+# wordcount (wc) used to count
+
+# Set RNA variable for analysis
+RNA=HCV_J6-JFH1-c2-plus
+
+# make directory for data
+mkdir $path/data/termini_nt
+
+# get 5' termini nt
+cd $path/data/featureCounts
+for sam_file in $samples
+do
+cd $path/data/featureCounts
+grep -P  "$RNA\t1\t" "$sam_file".sam | awk '{print substr($10, 0, 1) }' > $path/data/termini_nt/"$sam_file"_"$RNA".txt
+done
+wait
+
+
+# count AGCT
+mkdir $path/data/termini_nt/output
+for sam_file in $samples
+do
+cd $path/data/termini_nt/output
+touch "$sam_file"_"$RNA"_wc.txt
+cd $path/data/termini_nt
+	for letters in A G C T
+	do
+	grep -o $letters "$sam_file"_"$RNA".txt | wc -w >> $path/data/termini_nt/output/"$sam_file"_"$RNA"_wc.txt
+	done
+	wait
+done
+wait
+
+
+
+# Wordcount files ready for analysis in R
+
+
+
+##############
+# Making sequencing depth file containing sequencing depth for all mapped RNA for
+# the different samples.
+# Sam files containing alignment to RNAs are used for analysis
+# Example data sam files in $path/data/featureCounts
+# 
+
+
+#Sorting and making bams
+for lab_number in $samples
+do
+cd $path/data/featureCounts
+samtools view -u -S "$lab_number".sam | samtools sort > "$lab_number".bam &
+done
+wait
+
+
+# Make text file defining bam files for analysis
+cd $path/data/featureCounts
+touch bam_file.txt
+for lab_number in $samples
+do
+echo "$lab_number".bam >> bam_file.txt
+done
+wait
+
+# Make sequencing depth file (-a get zero counts, -H get header)
+samtools depth -a -H -Q 35 -f bam_file.txt > depth_file.txt
+
+# sequencing depth file ready for import into R
+
+
+##############
+# Making wig file containing sequencing depth for all mapped RNA for
+# the different samples, for upload to UCSC genome browser.
+# The display at UCSC requires mapping to the genome rather than to a RNA data base, 
+# which is the strategy used above for CapZyme-seq analysis.
+# The resulting wig files are not optimal to display mRNA data because mapping does not 
+# take splicing into account and are not split in read mapping to the forwar and reverse strand. 
+# premade bowtie2 index files can be downloaded from the illumina iGenome page:
+# https://support.illumina.com/sequencing/sequencing_software/igenome.html
+# http://igenomes.illumina.com.s3-website-us-east-1.amazonaws.com/Homo_sapiens/UCSC/hg38/Homo_sapiens_UCSC_hg38.tar.gz
+# Example data trimmed fastq files are in $path/data/$samples folders
+
+
+# Bowtie2 mapping here just for one AtNUDX23 and on control file
+for lab_number in 05 06
+do
+cd $path/data/"$lab_number"
+bowtie2 -p32 --very-sensitive -x /binf-isilon/vintherlab/jvinther/Sequences/genome/human_scratch/Homo_sapiens/UCSC/hg19/Sequence/Bowtie2Index/genome -U "$lab_number"_trimmed.fastq.gz | gzip > "$lab_number"_hg19.sam.gz
+done
+wait
+
+
+# Make AtNUDX23 bam and wig 
+# credit https://www.ecseq.com/support/ngs-snippets/how-to-get-a-coverage-graph-in-wig-file-format-directly-from-an-alignment-bam
+cd $path/data/05
+gunzip -c 05_hg19.sam.gz | samtools view -S -b -o AtNUDX23.bam 
+samtools sort AtNUDX23.bam > AtNUDX23.sorted.bam
+samtools index AtNUDX23.sorted.bam
+echo track type=wiggle_0 name="AtNUDX23" description="AtNUDX23 reads" visibility=full autoScale=on color=0,200,100 maxHeightPixels=100:50:20 | gzip -c > AtNUDX23.wig.gz
+samtools mpileup -BQ0 AtNUDX23.sorted.bam | perl -pe '($c, $start, undef, $depth) = split;if ($c ne $lastC || $start != $lastStart+1) {print "fixedStep chrom=$c start=$start step=1 span=1\n";}$_ = $depth."\n";($lastC, $lastStart) = ($c, $start);' | gzip -c >> AtNUDX23.wig.gz
+
+# Make Control bam and wig 
+# credit https://www.ecseq.com/support/ngs-snippets/how-to-get-a-coverage-graph-in-wig-file-format-directly-from-an-alignment-bam
+cd $path/data/06
+gunzip -c 06_hg19.sam.gz | samtools view -S -b -o control.bam 
+samtools sort control.bam > control.sorted.bam
+samtools index control.sorted.bam
+echo track type=wiggle_0 name="Control" description="Control reads" visibility=full autoScale=on color=0,200,100 maxHeightPixels=100:50:20 | gzip -c > AtNUDX23.wig.gz
+samtools mpileup -BQ0 control.sorted.bam | perl -pe '($c, $start, undef, $depth) = split;if ($c ne $lastC || $start != $lastStart+1) {print "fixedStep chrom=$c start=$start step=1 span=1\n";}$_ = $depth."\n";($lastC, $lastStart) = ($c, $start);' | gzip -c >> AtNUDX23.wig.gz
+
+
+# To display wig files upload to the appropriate UCSC genome browser as custom track
 
