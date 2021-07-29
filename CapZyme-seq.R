@@ -1,4 +1,5 @@
-# CapZyme-seq data analysis pipeline (Sherwood et al, 2021)
+# CapZyme-seq data analysis pipeline R part (Sherwood et al, 2021)
+# Jeppe Vinther, 2021-07-29
 
 #### Requirements
 # R (https://www.r-project.org/)
@@ -8,9 +9,10 @@
 ####
 
 
-# Preparation for analysis ---- 
+# Preparation for CapZyme-seq analysis ---- 
 library(DESeq2)
 library(tidyverse)
+library(reshape2)
 cbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 # Example data
@@ -19,8 +21,9 @@ cbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 # AtNUDX23: 02, 05, 08, 11, 14
 # Control: 03, 06, 09, 12, 15
 # CapZyme-seq.sh file shows how to produce the featureCounts file from fastq files
+# Example count file is located $path/FeatureCount_counts.txt
 
-# Read count file, 
+# Read count file, precomputed available at erda.ku.dk
 counts <- read_delim("https://erda.ku.dk/archives/e63276ecfaa314afaf8305d8e09fbe95/FeatureCount_counts.txt", 
                      "\t", escape_double = FALSE, comment = "#", 
                      trim_ws = TRUE)
@@ -111,4 +114,134 @@ points(resultsAtNUDX23$log2FoldChange[grepl(pattern = "HCV", x = resultsAtNUDX23
 points(resultsAtNUDX23$log2FoldChange[grepl(pattern = "5S", x = resultsAtNUDX23$Geneid)], 
        -log10(resultsAtNUDX23$pvalue[grepl(pattern = "5S", x = resultsAtNUDX23$Geneid)]), col = "black", bg =cbPalette[6], pch = 21)
 legend("topleft",cex = .7, pt.cex= 1, legend = c("HCV","5S rRNA"), col = rep("black",2), pt.bg = c(cbPalette[5],cbPalette[6]), pch = c(21,21))
+
+
+# Accessory analysis: Analysis of 5 termini sequence ----
+
+#### Requirements
+# R (https://www.r-project.org/)
+# Wordcount output file from a CapZyme experiment (as described in CapZyme.sh)
+# Example data is in $path/data/termini_nt/output
+# Reshape2 package (https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
+# stringr package
+# tidyverse (https://www.tidyverse.org/)
+####
+library(tidyverse)
+library(reshape2)
+library(stringr)
+
+# Preparation for termini nt-seq analysis ---- 
+# set path
+outputPath <- SET_PATH_TO_OUTPUT_FILE_DIRECTORY
+setwd(outputPath)
+files <- list.files(outputPath)
+
+# Read termini nt counts
+terminiCounts <- data.frame(nt = c("A","G","C","U"))
+for(i in files) {
+  terminiCounts[i] <- as.numeric(scan(i, what = "numeric"))
+}
+
+# Prepare for plotting with ggplot2 and annotate samples
+terminiCounts <- melt(terminiCounts, id.vars=c("nt"))
+terminiCounts$sample <- as.factor(str_split(terminiCounts$variable, pattern = "_" , n = Inf, simplify = TRUE)[,1])
+terminiCounts$treatment <- NA
+terminiCounts$treatment[terminiCounts$sample  %in% c("02","05","08","11","14")] <- "AtNUDX23"
+terminiCounts$treatment[terminiCounts$sample  %in% c("03","06","09","12","15")] <- "Control"
+terminiCounts$treatment <- as.factor(terminiCounts$treatment)
+
+
+# Annotate replicates
+levels(terminiCounts$sample)[levels(terminiCounts$sample) == "02" | levels(terminiCounts$sample) == "03"] <- "rep1"
+levels(terminiCounts$sample)[levels(terminiCounts$sample) == "05" | levels(terminiCounts$sample) == "06"] <- "rep2"
+levels(terminiCounts$sample)[levels(terminiCounts$sample) == "08" | levels(terminiCounts$sample) == "09"] <- "rep3"
+levels(terminiCounts$sample)[levels(terminiCounts$sample) == "11" | levels(terminiCounts$sample) == "12"] <- "rep4"
+levels(terminiCounts$sample)[levels(terminiCounts$sample) == "14" | levels(terminiCounts$sample) == "15"] <- "rep5"
+names(terminiCounts)[names(terminiCounts)=="value"] <- "Percentage"
+
+# Plot nt termini counts
+ggplot(terminiCounts, aes(fill=nt, y=Percentage, x=sample)) + 
+  geom_bar(position="fill", stat="identity")  +
+  scale_fill_manual(values = cbPalette[c(5,3,8,7)]) +
+  ggtitle("Start nucleotide J6/JFH1+")
+  
+# Accessory analysis: Analysis of sequencing depth ----
+
+#### Requirements
+# R (https://www.r-project.org/)
+# Depth output file from a CapZyme experiment (example data: $path/data/featureCounts/depth_file.txt)
+# featureCounts summary file from a CapZyme experiment (example data: $path/featureCount_counts.txt.summary)
+# DESeq2 package (https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
+# tidyverse (https://www.tidyverse.org/)
+####
+# Function to normalize the sequencing depth to per 10^6 assigned reads
+normaliseDepth <- function(count_sum_file, depthFile, ...) {
+  depthNorm <- data.frame(chr = depthFile$`#CHROM`, POS = depthFile$POS)
+  depthNorm[, colnames(depthFile)[3:ncol(depthFile)]] <- depthFile[,colnames(depthFile)[3:ncol(depthFile)]]*10E6/as.data.frame(lapply(counts_sum[1,gsub(pattern = ".bam", replacement = ".sam",x = colnames(depthFile)[3:ncol(depthFile)])],rep,nrow(depthFile)))
+  depthNorm
+}
+# Function to plot sequencing depth for specific RNA
+plotDepth <- function(RNA_ID, BAM_FILE, depthFile, ...) {
+  depthFile <- depthFile[depthFile$chr == RNA_ID,]
+  o <- order(depthFile$POS[depthFile$chr == RNA_ID] )
+  depthFile <- depthFile[o,]
+  plot(as.vector(depthFile$POS),depthFile[, (names(depthFile) %in% BAM_FILE)],
+       type="h",
+       main = paste(RNA_ID, BAM_FILE, sep = "\n"),
+       xlab = "Position", 
+       ylab = "Sequencing depth",
+       ...)
+  
+}
+cbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+countsSum <- read.delim("/binf-isilon/vintherlab/jvinther/scratch/featureCount_counts.txt.summary", check.names = F,header = TRUE,sep = "\t")
+depthFile <- read.delim("/binf-isilon/vintherlab/jvinther/scratch/data/featureCounts/depth_file.txt", check.names = F,header = TRUE,sep = "\t" )
+
+# Normalise the sequencing depth to library depth (10^6 assigned reads)
+depthNorm <- normaliseDepth(countsSum,depthFile)
+
+
+# Plotting sequencing depth
+par(mfrow=c(2,2))
+
+plotDepth(RNA_ID = "HCV_J6-JFH1-c2-plus",
+           BAM_FILE = "05.bam", 
+           depthFile = depthNorm, 
+           col = cbPalette[6], 
+           xlim= c(1,9678), 
+           ylim=c(1,3500),
+           bty="n",
+           lwd=1) 
+
+
+plotDepth(RNA_ID = "HCV_J6-JFH1-c2-minus",
+           BAM_FILE = "05.bam", 
+           depthFile = depthNorm, 
+           col = cbPalette[4], 
+           xlim= rev(c(1,9678)), 
+           ylim=rev(c(1,600)),
+           bty="n",
+           lwd=1,
+           axes = TRUE) 
+
+plotDepth(RNA_ID = "HCV_J6-JFH1-c2-plus",
+           BAM_FILE = "06.bam", 
+           depthFile = depthNorm, 
+           col = cbPalette[6], 
+           xlim= c(1,9678), 
+           ylim=c(1,3500),
+           bty="n",
+           lwd=1) 
+
+plotDepth(RNA_ID = "HCV_J6-JFH1-c2-minus",
+          BAM_FILE = "06.bam", 
+          depthFile = depthNorm, 
+          col = cbPalette[4], 
+          xlim= rev(c(1,9678)), 
+          ylim=rev(c(1,600)),
+          bty="n",
+          lwd=1,
+          axes = TRUE) 
 
